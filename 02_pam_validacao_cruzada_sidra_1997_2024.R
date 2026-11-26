@@ -11,7 +11,8 @@ library(here)
 
 VARIAVEIS <- c(8331, 216, 214, 112, 215)  # área plantada, área colhida, quantidade, rendimento, valor
 
-# 1. Arquivo local ---------------------------------------------------------------
+# 1. Arquivo local
+
 arq_local <- here("01_pam", "dados", paste0("pam_", REGIAO, "_estado_1997_2024_bruto.rds"))
 exigir_arquivo(arq_local, "01_pam_extracao_1997_2024.R")
 
@@ -20,8 +21,8 @@ local <- readRDS(arq_local) %>%
   pivot_longer(-c(ano, codigo_uf, produto), names_to = "variavel", values_to = "valor_local") %>%
   mutate(ano = as.integer(ano), codigo_uf = as.integer(codigo_uf), valor_local = as.numeric(valor_local))
 
-# 2. Reconsulta à API do SIDRA ----------------------------------------------------
-# Uma consulta por estado: o SIDRA aceita no máximo 100.000 valores por consulta
+# 2. Reconsulta à API do SIDRA
+
 api <- bind_rows(lapply(UFS, function(uf) sprintf(
   "https://apisidra.ibge.gov.br/values/t/5457/%s/%d/v/%s/p/%d-%d/c782/allxt",
   NIVEL_SIDRA, uf, paste(VARIAVEIS, collapse = ","), min(ANOS), max(ANOS)
@@ -48,7 +49,8 @@ if (length(vars_sem_par) > 0) {
   stop("Variáveis sem correspondência na API: ", paste(vars_sem_par, collapse = "; "))
 }
 
-# 3. Comparação ------------------------------------------------------------------
+# 3. Comparação (validando as tabelas para verificar se estão todas okay)
+
 presentes_so_no_local <- anti_join(distinct(local, ano, codigo_uf, produto), distinct(api, ano, codigo_uf, produto),
                                    by = c("ano", "codigo_uf", "produto"))
 presentes_so_na_api   <- anti_join(distinct(api, ano, codigo_uf, produto), distinct(local, ano, codigo_uf, produto),
@@ -98,7 +100,8 @@ resumo <- tibble(
   ))
 )
 
-# 4. Amostra de 15 células com o link da API, para conferir no navegador ----------
+# 4. Amostra de 15 células com o link da API, para validar se saiu da forma correta (verificar se precisa desse trecho do código ainda)
+
 set.seed(2024)
 amostra_conferencia_manual <- comparacao %>%
   filter(!is.na(valor_local)) %>%
@@ -111,7 +114,8 @@ amostra_conferencia_manual <- comparacao %>%
   ) %>%
   arrange(codigo_uf, produto, ano)
 
-# 5. Saída -----------------------------------------------------------------------
+# 5. Saída
+
 vazia <- function(df) if (nrow(df) == 0) tibble(observacao = "nenhuma") else df
 
 arquivo <- here("01_pam", "analise_descritiva", "pam_validacao_cruzada_sidra_1997_2024.xlsx")
