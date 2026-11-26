@@ -1,16 +1,13 @@
 # 01_pam_extracao_1997_2024.R
-# Extrai a PAM/IBGE (tabela 5457) do Brasil (nível n1, total do país) (o rendimento não é
-# somável entre municípios). 1997 é o primeiro ano com NCM estável nas exportações.
-# Saídas (01_pam/dados/):
-#   pam_<regiao>_estado_1997_2024_bruto.rds   dados, uma linha por ano x estado x produto (entrada dos scripts 02, 03 e 06)
+#   pam_<regiao>_estado_1997_2024_bruto.rds   dados, uma linha por ano x estado x produto
 #   pam_<regiao>_unidades_1997_2024.rds       unidade da quantidade e do rendimento, produto x ano
 #   pam_<regiao>_estado_1997_2024.xlsx        abas dados, unidades_nao_padrao e dicionario
 #
-# ATENÇÃO, unidades: a quantidade e o rendimento não têm a mesma unidade em
+# ATENÇÃO (discutir ponto com o Caio), unidades: a quantidade e o rendimento não têm a mesma unidade em
 # todas as linhas. Até 2000, o IBGE media as frutas em mil frutos (banana em
 # mil cachos); a partir de 2001, em toneladas. Abacaxi e coco-da-baía seguem
 # em mil frutos em todos os anos. Ver a seção "Unidades de medida" abaixo e a
-# nota metodológica.
+# nota metodológica. (inclusive esse é um ponto que precisamos conversar sobre, se podemos retirar esses produtos do modelo). 
 
 source(here::here("scripts", "funcoes_comuns.R"))
 library(sidrar)
@@ -22,12 +19,13 @@ library(writexl)
 pasta <- here("01_pam", "dados")
 dir.create(pasta, showWarnings = FALSE, recursive = TRUE)
 
-# Todos os produtos da classificação c782, exceto o Total ("allxt").
-# 8331 área plantada, 216 área colhida, 214 quantidade, 112 rendimento, 215 valor
-# Uma consulta só (Brasil): cerca de 12 mil valores, abaixo do limite de 100 mil.
-#
-# 1ª tentativa: pacote sidrar. Se a conexão falhar ("cannot open the
-# connection"), tenta de novo pela API direta (httr2, com novas tentativas).
+# Todos os produtos da classificação c782.
+# 8331 área plantada.
+# 216 área colhida. 
+# 214 quantidade.
+# 112 rendimento
+# 215 valor
+
 extrair_uf <- function(uf) {
   consulta <- sprintf("/t/5457/%s/%d/v/8331,216,214,112,215/p/%d-%d/c782/allxt",
                       NIVEL_SIDRA, uf, min(ANOS), max(ANOS))
@@ -46,11 +44,11 @@ bruto <- bind_rows(lapply(UFS, extrair_uf)) %>%
   mutate(Valor = as.numeric(Valor))
 bruto$codigo_unidade <- bruto[[coluna_codigo_unidade(bruto)]]
 
-# Unidades de medida ----------------------------------------------------------
+# IMPORTANTE - Não esquecer de adicionar esses pontos na metodologia.
 # A coluna "Unidade de Medida" da API do SIDRA NÃO serve para isso: ela traz o
 # rótulo da variável na tabela ("Toneladas", "Quilogramas por Hectare") para
 # todas as linhas, inclusive para as frutas em 1997-2000 e para abacaxi e coco,
-# que não estão em toneladas (conferido em 18/11/2026). Por isso a unidade é
+# que não estão em toneladas. Por isso a unidade é
 # atribuída pela regra documentada pelo IBGE (COAGRO, "Mudança da unidade de
 # medida das frutíferas"): até 2000, frutíferas em mil frutos (banana em mil
 # cachos); a partir de 2001, em toneladas; abacaxi e coco-da-baía em mil
