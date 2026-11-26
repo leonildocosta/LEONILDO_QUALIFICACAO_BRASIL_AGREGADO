@@ -17,19 +17,22 @@ pasta_graficos <- here("01_pam", "graficos")
 dir.create(pasta_saida,    showWarnings = FALSE, recursive = TRUE)
 dir.create(pasta_graficos, showWarnings = FALSE, recursive = TRUE)
 
-# 1. Leitura -----------------------------------------------------------------------
+# 1. Leitura 
+
 arq_entrada <- here("01_pam", "dados", paste0("pam_", REGIAO, "_estado_1997_2024_bruto.rds"))
 exigir_arquivo(arq_entrada, "01_pam_extracao_1997_2024.R")
 pam_wide <- readRDS(arq_entrada)
 
 # As 5 variáveis da PAM: área plantada, área colhida, quantidade, rendimento, valor
+
 colunas_var <- setdiff(names(pam_wide), c("ano", "codigo_uf", "sigla_uf", "uf", "produto"))
 anos        <- sort(unique(pam_wide$ano))
 periodo     <- paste0(min(anos), "–", max(anos))
 cat("Base:", nrow(pam_wide), "linhas;", length(colunas_var), "variáveis:",
     paste(colunas_var, collapse = "; "), "\n")
 
-# 2. Estatísticas descritivas ------------------------------------------------------
+# 2. Estatísticas descritivas 
+
 resumo_geral <- tibble(
   metrica = c("Total de linhas", "Anos cobertos (min-max)", "N. de anos distintos",
               "N. de produtos distintos", "N. de variáveis"),
@@ -89,7 +92,8 @@ por_variavel <- map_dfr(colunas_var, function(v) {
   )
 })
 
-# 3. Cobertura temporal: em que anos cada produto tem alguma variável preenchida ----
+# 3. Cobertura temporal: em que anos cada produto tem alguma variável preenchida
+
 cobertura_longa <- pam_wide %>%
   mutate(tem_dado = if_any(all_of(colunas_var), ~ !is.na(.))) %>%
   group_by(produto, ano) %>%
@@ -108,11 +112,12 @@ cat(sprintf("Cobertura temporal: %d de %d produtos têm dado em todos os %d anos
             sum(cobertura_temporal$anos_com_dado == length(anos)),
             nrow(cobertura_temporal), length(anos)))
 
-# 4. Valores suspeitos, cada produto comparado com ele mesmo ------------------------
+# 4. Valores suspeitos, cada produto comparado com ele mesmo
 # Salto anual > 4x ou < 1/4. Só no rendimento: > 5x ou < 1/5 da mediana do produto
 # (nas outras variáveis, tendência e inflação gerariam falsos alarmes). Identidades:
 # colhida > plantada; rendimento recalculado com diferença > 5%. base_pequena: área
 # colhida mediana < 100 ha, onde saltos grandes são normais.
+
 LIMIAR_SALTO        <- 4    # razão ano / ano anterior
 LIMIAR_MEDIANA      <- 5    # razão valor / mediana do produto
 LIMIAR_RENDIMENTO   <- 5    # diferença % no rendimento recalculado
@@ -186,12 +191,14 @@ write_xlsx(list(
 ), arq_xlsx)
 cat("Excel salvo em:", arq_xlsx, "\n")
 
-# 5. Gráficos ----------------------------------------------------------------------
+# 5. Gráficos
+
 fonte      <- "Fonte: IBGE, PAM, tabela 5457. Elaboração própria."
 N_DESTAQUE <- 8  # produtos nos gráficos de "principais produtos"
 grafico    <- function(nome) file.path(pasta_graficos, nome)
 
 # Os mesmos N_DESTAQUE produtos (maior valor médio anual) em todos os gráficos
+
 valor_medio_produto <- pam_wide %>%
   group_by(produto) %>%
   summarise(valor_medio_anual = mean(`Valor da produção`, na.rm = TRUE), .groups = "drop") %>%
@@ -202,6 +209,7 @@ produtos_destaque <- head(valor_medio_produto$produto, N_DESTAQUE)
 cat("Gerando gráficos em", pasta_graficos, "\n")
 
 # 01. Área plantada e colhida total
+
 g <- pam_wide %>%
   group_by(ano) %>%
   summarise(`Área plantada` = sum(`Área plantada ou destinada à colheita`, na.rm = TRUE),
@@ -221,6 +229,7 @@ g <- pam_wide %>%
 salvar_grafico(g, grafico("01_evolucao_area_total.png"))
 
 # 02. Valor total da produção
+
 g <- pam_wide %>%
   group_by(ano) %>%
   summarise(valor_total = sum(`Valor da produção`, na.rm = TRUE)) %>%
@@ -236,6 +245,7 @@ salvar_grafico(g, grafico("02_evolucao_valor_producao.png"))
 
 # 03. Composição do valor da produção. complete() preenche com 0 os anos em
 # que um grupo não aparece; sem isso o geom_area interpola e a pilha passa de 100%.
+
 g <- pam_wide %>%
   mutate(grupo = if_else(produto %in% produtos_destaque, produto, "Outros")) %>%
   group_by(ano, grupo) %>%
@@ -257,6 +267,7 @@ g <- pam_wide %>%
 salvar_grafico(g, grafico("03_composicao_valor_produtos.png"))
 
 # 04. Ranking dos 15 produtos de maior valor médio anual
+
 g <- valor_medio_produto %>%
   slice_head(n = 15) %>%
   ggplot(aes(valor_medio_anual, fct_reorder(produto, valor_medio_anual), fill = valor_medio_anual)) +
@@ -269,8 +280,8 @@ g <- valor_medio_produto %>%
   tema_dissertacao()
 salvar_grafico(g, grafico("04_ranking_produtos_valor.png"), altura = 7)
 
-# 05. Rendimento dos principais produtos. Eixo y livre em cada painel: as
-# magnitudes (ex.: mandioca x soja) são muito diferentes.
+# 05. Rendimento dos principais produtos.
+
 g <- pam_wide %>%
   filter(produto %in% produtos_destaque) %>%
   ggplot(aes(ano, `Rendimento médio da produção`)) +
@@ -288,6 +299,7 @@ g <- pam_wide %>%
 salvar_grafico(g, grafico("05_evolucao_rendimento_produtos.png"), largura = 11, altura = 8)
 
 # 06. Distribuição do rendimento dos principais produtos
+
 g <- pam_wide %>%
   filter(produto %in% produtos_destaque, !is.na(`Rendimento médio da produção`)) %>%
   ggplot(aes(`Rendimento médio da produção`,
@@ -303,6 +315,7 @@ g <- pam_wide %>%
 salvar_grafico(g, grafico("06_boxplot_rendimento_produtos.png"))
 
 # 07. Mapa de calor da cobertura temporal
+
 g <- cobertura_longa %>%
   left_join(select(cobertura_temporal, produto, pct_cobertura_periodo), by = "produto") %>%
   ggplot(aes(ano, fct_reorder(produto, pct_cobertura_periodo), fill = factor(tem_dado))) +
