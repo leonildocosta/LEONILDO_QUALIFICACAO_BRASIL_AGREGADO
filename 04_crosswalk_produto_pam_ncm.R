@@ -1,18 +1,14 @@
 # 04_crosswalk_produto_pam_ncm.R  (versão Brasil, 27 estados)
-# Correspondência entre os produtos da PAM e os NCMs do Comex Stat. Não existe
-# tabela oficial: cada ligação segue a descrição do NCM, conferida contra as
-# exportações reais do Brasil (diagnóstico do script 05b, 24/11/2026). O motivo
-# de cada decisão está na coluna observacao.
+# Correspondência entre os produtos da PAM e os NCMs do Comex Stat. 
 # Saída: 05_painel/dados/crosswalk_produto_pam_ncm_1997_2024.xlsx
-#
 # Regras
 # 1. Entra o NCM do produto na forma em que a PAM o mede, ou na forma mínima de
 #    comercialização (seco, descascado, debulhado, destalado). Sementes para
 #    semeadura do mesmo produto também entram (são o mesmo grão).
 # 2. Formas processadas (óleo, suco, farinha, açúcar, torrado, chocolate) NÃO
-#    entram: a tonelada exportada não é a tonelada colhida.
+#    entram: a tonelada exportada não é a tonelada colhida (ficam fora do modelo, ajustar isso com o Caio).
 # 3. Produto exportado principalmente processado fica com status
-#    "confirmado_real_produto_processado" e sai do modelo (como a cana no Piauí).
+#    "confirmado_real_produto_processado" e sai do modelo.
 #    O NCM in natura, quando existe, fica listado só para registro.
 # 4. Produtos da PAM sem NCM exportado: status "sem_ncm_exportado" (exportação 0).
 # 5. Café: entra só o "Café (em grão) Total"; Arábica e Canephora são parcelas
@@ -30,13 +26,14 @@ P  <- "confirmado_real"
 PF <- "confirmado_real_forma_minima"            # descascado, destalado, debulhado, seco
 PO <- "confirmado_real_ncm_inclui_outros"       # o NCM inclui produtos parecidos
 PR <- "confirmado_real_produto_processado"      # sai do modelo
-RT <- "confirmado_real_compartilhado_rateio"    # 08045000, manga e goiaba
+RT <- "confirmado_real_compartilhado_rateio"    # 08045000, manga e goiaba, discutir esse ponto com o Caio e explicar a logica dele
 Z  <- "sem_ncm_exportado"
 DOM <- "zero_por_regra_produto_dominante"
 
 crosswalk_ncm <- tribble(
   ~produto_pam, ~codigos_ncm, ~status_ncm, ~observacao,
-  # Grãos e oleaginosas ---------------------------------------------------------
+  # Grãos e oleaginosas 
+  
   "Soja (em grão)", "12019000,12010090,12010010,12011000", P, "12010090/12010010 são os códigos anteriores à revisão da NCM; inclui soja para semeadura. Óleo e farelo (cap. 15 e 23) não entram",
   "Milho (em grão)", "10059010,10059090,10051000", P, "Inclui milho para semeadura. Farinha, amido e óleo não entram",
   "Sorgo (em grão)", "10079000,10070090,10071000,10070010", P, "Inclui sorgo para semeadura",
@@ -66,7 +63,9 @@ crosswalk_ncm <- tribble(
   "Chá-da-índia (folha verde)", "09021000,09022000,09023000,09024000", PR, "O chá exportado é seco/fermentado; a PAM mede a folha verde. Sai do modelo",
   "Cana-de-açúcar", "17011400,17011100,17019900", PR, "Exportação é de açúcar, não de cana. Sai do modelo",
   "Dendê (cacho de coco)", NA, PR, "Exportado como óleo de dendê (15111000). Sai do modelo",
-  # Hortaliças e tubérculos --------------------------------------------------------
+  
+  # Hortaliças e tubérculos
+  
   "Batata-inglesa", "07019000,07011000", P, "",
   "Batata-doce", "07142000", P, "",
   "Mandioca", "07141000", P, "Fécula e farinha não entram",
@@ -79,7 +78,9 @@ crosswalk_ncm <- tribble(
   "Pimentão", "07096000", PO, "NCM inclui pimentas Capsicum frescas",
   "Repolho", "07049000", PO, "NCM inclui couves do gênero Brassica",
   "Azeitona", "07099200", P, "",
-  # Frutas -------------------------------------------------------------------------
+  
+  # Frutas
+  
   "Laranja", "08051000", PR, "Exportada sobretudo como suco (2009.1x, cerca de 140 vezes o valor da fruta fresca). Sai do modelo",
   "Tangerina", "08052000,08052100,08052200,08052900", P, "",
   "Limão", "08055000,08053000", P, "08053000 é o código anterior à revisão da NCM",
@@ -106,6 +107,7 @@ crosswalk_ncm <- tribble(
 )
 
 # Produtos da PAM sem exportação ou fora do comércio exterior em grão
+
 sem_ncm <- c("Alface", "Alfafa fenada", "Açaí", "Borracha (látex coagulado)", "Borracha (látex líquido)",
              "Caju", "Cana para forragem", "Chuchu", "Cupuaçu", "Graviola", "Guaraná (semente)",
              "Juta (fibra)", "Malva (fibra)", "Milho verde", "Palmito", "Rami (fibra)",
@@ -117,6 +119,7 @@ crosswalk_ncm <- bind_rows(
 )
 
 # Conferências
+
 codigos <- unlist(strsplit(na.omit(crosswalk_ncm$codigos_ncm), ","))
 stopifnot(
   !anyDuplicated(crosswalk_ncm$produto_pam),
